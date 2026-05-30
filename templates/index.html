@@ -1,0 +1,1459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NeuroStudy | AI-Powered Study Planner</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.9/index.global.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.9/index.global.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+            min-height: 100vh;
+        }
+        
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 280px;
+            height: 100vh;
+            background: rgba(15, 23, 42, 0.98);
+            backdrop-filter: blur(10px);
+            border-right: 1px solid rgba(79, 70, 229, 0.3);
+            z-index: 50;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .main-content {
+            margin-left: 280px;
+            padding: 24px;
+            min-height: 100vh;
+            width: calc(100% - 280px);
+            max-width: calc(100% - 280px);
+            overflow-x: hidden;
+        }
+        
+        .section {
+            display: none;
+            width: 100%;
+            max-width: 100%;
+            overflow-x: hidden;
+        }
+        
+        .section.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+        
+        .card {
+            background: rgba(30, 41, 59, 0.9);
+            backdrop-filter: blur(8px);
+            border-radius: 20px;
+            padding: 20px;
+            border: 1px solid rgba(79, 70, 229, 0.2);
+            transition: all 0.3s ease;
+            width: 100%;
+            overflow-x: auto;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: none;
+            font-size: 14px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .btn-primary { background: linear-gradient(135deg, #4f46e5, #7c3aed); color: white; }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(79, 70, 229, 0.4); }
+        .btn-secondary { background: rgba(51, 65, 85, 0.9); color: #e2e8f0; border: 1px solid #334155; }
+        .btn-secondary:hover { border-color: #4f46e5; color: #818cf8; }
+        .btn-success { background: #10b981; color: white; }
+        .btn-danger { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
+        
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 20px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: #94a3b8;
+            margin: 4px 12px;
+        }
+        
+        .nav-item:hover, .nav-item.active {
+            background: rgba(79, 70, 229, 0.15);
+            color: #a78bfa;
+        }
+        
+        .progress-bar {
+            height: 8px;
+            background: #1e293b;
+            border-radius: 999px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4f46e5, #7c3aed);
+            border-radius: 999px;
+            transition: width 0.5s ease;
+        }
+        
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 12px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        .badge-coding { background: rgba(79, 70, 229, 0.2); color: #a78bfa; }
+        .badge-theory { background: rgba(14, 165, 233, 0.2); color: #38bdf8; }
+        .badge-math { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
+        .badge-project { background: rgba(16, 185, 129, 0.2); color: #34d399; }
+        
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(8px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        
+        .modal-container {
+            background: #1e293b;
+            border-radius: 24px;
+            padding: 24px;
+            max-width: 650px;
+            width: 90%;
+            max-height: 85vh;
+            overflow-y: auto;
+            border: 1px solid #334155;
+        }
+        
+        .modal-container label {
+            color: #cbd5e1 !important;
+            font-size: 13px;
+            font-weight: 500;
+            margin-bottom: 6px;
+            display: block;
+        }
+        
+        .modal-container input, .modal-container select, .modal-container textarea {
+            background: #0f172a !important;
+            border: 1px solid #334155 !important;
+            border-radius: 12px !important;
+            padding: 12px !important;
+            color: #f1f5f9 !important;
+            width: 100% !important;
+            outline: none !important;
+        }
+        
+        .chatbot-container {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            z-index: 100;
+        }
+        
+        .chatbot-toggle {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, #4f46e5, #7c3aed);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 10px 25px -5px rgba(79, 70, 229, 0.5);
+            transition: all 0.2s;
+        }
+        
+        .chatbot-toggle:hover { transform: scale(1.05); }
+        
+        .chatbot-window {
+            position: absolute;
+            bottom: 80px;
+            right: 0;
+            width: 450px;
+            height: 600px;
+            background: #1e293b;
+            border-radius: 20px;
+            border: 1px solid #334155;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+        
+        .chatbot-window.hidden { display: none; }
+        
+        .chatbot-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .chatbot-message {
+            max-width: 85%;
+            padding: 12px 16px;
+            border-radius: 18px;
+            font-size: 14px;
+            line-height: 1.5;
+            word-wrap: break-word;
+        }
+        
+        .chatbot-message.user {
+            background: #4f46e5;
+            color: white;
+            align-self: flex-end;
+            border-bottom-right-radius: 4px;
+        }
+        
+        .chatbot-message.bot {
+            background: #334155;
+            color: #e2e8f0;
+            align-self: flex-start;
+            border-bottom-left-radius: 4px;
+        }
+        
+        .chatbot-input {
+            padding: 16px;
+            border-top: 1px solid #334155;
+            display: flex;
+            gap: 8px;
+            background: #1e293b;
+        }
+        
+        .chatbot-input input {
+            flex: 1;
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 12px;
+            padding: 12px;
+            color: white;
+            outline: none;
+        }
+        
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background: #1e293b;
+            border-left: 4px solid #4f46e5;
+            border-radius: 12px;
+            padding: 14px 20px;
+            z-index: 1100;
+            animation: slideIn 0.3s ease;
+            color: white;
+        }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        
+        .day-selector {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 10px 0;
+        }
+        
+        .day-btn {
+            padding: 6px 12px;
+            border-radius: 8px;
+            background: #0f172a;
+            color: #94a3b8;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+            border: 1px solid #334155;
+        }
+        
+        .day-btn.selected {
+            background: #4f46e5;
+            color: white;
+            border-color: #4f46e5;
+        }
+        
+        .time-input-group {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-top: 8px;
+        }
+        
+        .schedule-slot {
+            background: rgba(15, 23, 42, 0.8);
+            border-radius: 12px;
+            padding: 12px;
+            margin-bottom: 12px;
+        }
+        
+        .color-preview {
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: all 0.2s;
+        }
+        
+        .color-preview.selected { border-color: white; transform: scale(1.1); }
+        
+        .fc { background: transparent !important; }
+        .fc .fc-toolbar-title { color: white !important; }
+        .fc .fc-button-primary { background: #334155 !important; border-color: #475569 !important; color: white !important; }
+        .fc .fc-button-primary:not(:disabled).fc-button-active { background: #4f46e5 !important; }
+        .fc-theme-standard td, .fc-theme-standard th { border-color: #334155 !important; }
+        .fc-daygrid-day-number, .fc-col-header-cell-cushion { color: #94a3b8 !important; font-size: 12px !important; }
+        .fc-daygrid-day { background: rgba(15, 23, 42, 0.5); }
+        .fc-event {
+            border: none !important;
+            border-radius: 6px !important;
+            color: white !important;
+            font-size: 11px !important;
+            font-weight: 500 !important;
+            padding: 4px 6px !important;
+            cursor: pointer !important;
+        }
+        .fc-timegrid-slot-label-cushion, .fc-timegrid-axis-cushion {
+            color: #cbd5e1 !important;
+            font-size: 11px !important;
+        }
+        .fc .fc-timegrid-slot { background: rgba(15, 23, 42, 0.5); }
+        
+        .bed-time-indicator {
+            background: linear-gradient(135deg, #1e1b4b, #0f172a);
+            border-radius: 12px;
+            padding: 12px;
+            margin-top: 16px;
+            text-align: center;
+            border: 1px solid rgba(79, 70, 229, 0.3);
+        }
+        
+        @media print {
+            .sidebar, .chatbot-container, .btn, .view-btn, .nav-item {
+                display: none !important;
+            }
+            .main-content {
+                margin-left: 0 !important;
+                padding: 0 !important;
+                width: 100% !important;
+            }
+        }
+        
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #1e293b; }
+        ::-webkit-scrollbar-thumb { background: #4f46e5; border-radius: 3px; }
+        
+        .hidden { display: none !important; }
+        input, select, textarea { color: #f1f5f9 !important; }
+        
+        .todo-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            background: #0f172a;
+            border-radius: 12px;
+            margin-bottom: 8px;
+        }
+        
+        .problems-column {
+            background: #0f172a;
+            border-radius: 16px;
+            padding: 16px;
+        }
+        
+        .problem-card {
+            background: #1e293b;
+            border-radius: 12px;
+            padding: 12px;
+            margin-bottom: 12px;
+        }
+        
+        .typing-indicator {
+            display: flex;
+            gap: 4px;
+            padding: 12px 16px;
+            background: #334155;
+            border-radius: 18px;
+            align-self: flex-start;
+        }
+        
+        .typing-indicator span {
+            width: 8px;
+            height: 8px;
+            background: #94a3b8;
+            border-radius: 50%;
+            animation: typing 1.4s infinite ease-in-out;
+        }
+        
+        @keyframes typing {
+            0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+            30% { transform: translateY(-10px); opacity: 1; }
+        }
+        
+        .view-btn.active {
+            background: #4f46e5 !important;
+            color: white !important;
+        }
+    </style>
+</head>
+<body>
+
+<!-- Sidebar -->
+<div class="sidebar">
+    <div class="p-6 border-b border-indigo-500/20">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 flex items-center justify-center text-xl">🧠</div>
+            <div>
+                <h1 class="font-bold text-lg text-white">NeuroStudy</h1>
+                <p class="text-xs text-slate-400">Timetable Optimizer</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="p-4 border-b border-indigo-500/20">
+        <div class="bg-indigo-500/10 rounded-xl p-3 border border-indigo-500/20">
+            <p id="sidebar-quote" class="text-xs italic text-slate-300 leading-relaxed">Loading...</p>
+            <p id="sidebar-quote-author" class="text-xs text-slate-400 mt-2"></p>
+            <button onclick="refreshSidebarQuote()" class="text-xs text-indigo-400 mt-2 hover:text-indigo-300">🔄 New Quote</button>
+        </div>
+    </div>
+    
+    <nav class="py-4 flex-1">
+        <div class="nav-item active" onclick="showSection('dashboard')">📊 Dashboard</div>
+        <div class="nav-item" onclick="showSection('subjects')">📚 Subjects</div>
+        <div class="nav-item" onclick="showSection('timetable')">🗓️ Timetable</div>
+        <div class="nav-item" onclick="showSection('todo')">✓ To Do List</div>
+        <div class="nav-item" onclick="showSection('analytics')">📈 Analytics</div>
+        <div class="nav-item" onclick="showSection('practice')">💻 Practice</div>
+        <div class="nav-item" onclick="showSection('export')">📤 Export</div>
+        <div class="nav-item" onclick="showSection('exam-predictor')">📊 Exam Predictor</div>
+        <div class="nav-item" onclick="showSection('time-optimizer')">⏰ Time Optimizer</div>
+        <div class="nav-item" onclick="showSection('quiz')">📝 AI Quiz</div>
+        <div class="nav-item" onclick="showSection('burnout')">❤️ Burnout Predictor</div>
+        <div class="nav-item" onclick="showSection('study-plan')">🎯 AI Study Plan</div>
+    </nav>
+    
+    <div class="p-4 border-t border-indigo-500/20 mt-auto">
+        <div class="text-xs">
+            <p class="text-slate-400 mb-1">🧠 Burnout Status</p>
+            <div class="progress-bar mb-2"><div id="burnout-bar" class="progress-fill" style="width:0%"></div></div>
+            <p id="burnout-text" class="text-green-400 text-xs">Loading...</p>
+        </div>
+    </div>
+</div>
+
+<!-- Main Content -->
+<div class="main-content">
+    <!-- Dashboard Section -->
+    <section id="section-dashboard" class="section active">
+        <div class="mb-6"><h2 class="text-3xl font-bold text-white">Dashboard</h2><p class="text-slate-400 mt-1">Your AI-powered study companion</p></div>
+        <div class="card mb-6 bg-gradient-to-r from-indigo-500/10 to-purple-500/10">
+            <div class="flex items-start justify-between">
+                <div class="flex-1"><p class="text-xs text-indigo-400 font-semibold mb-2">⭐ Quote of the Day</p><p id="qotd-text" class="text-lg italic leading-relaxed text-slate-200">Loading...</p><p id="qotd-author" class="text-sm text-slate-400 mt-2"></p></div>
+                <button onclick="pinQuote()" class="text-2xl hover:scale-110 transition-transform">📌</button>
+            </div>
+        </div>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <div class="card text-center"><p class="text-3xl font-bold text-indigo-400" id="stat-subjects">0</p><p class="text-xs text-slate-400 mt-1">Subjects</p></div>
+            <div class="card text-center"><p class="text-3xl font-bold text-cyan-400" id="stat-hours">0h</p><p class="text-xs text-slate-400 mt-1">Total Hours</p></div>
+            <div class="card text-center"><p class="text-3xl font-bold text-amber-400" id="stat-sessions">0</p><p class="text-xs text-slate-400 mt-1">Sessions</p></div>
+            <div class="card text-center"><p class="text-3xl font-bold text-emerald-400" id="stat-progress">0%</p><p class="text-xs text-slate-400 mt-1">Avg Progress</p></div>
+        </div>
+        <div class="card"><div class="flex items-center justify-between mb-4"><h3 class="font-semibold text-white">📚 Recent Subjects</h3><button onclick="showSection('subjects')" class="text-sm text-indigo-400">View All →</button></div><div id="recent-subjects" class="space-y-3"></div></div>
+    </section>
+    
+    <!-- Subjects Section -->
+    <section id="section-subjects" class="section">
+        <div class="flex items-center justify-between mb-6"><h2 class="text-2xl font-bold text-white">📚 My Subjects</h2><button onclick="openAddSubjectModal()" class="btn btn-primary">+ Add Subject</button></div>
+        <div id="subjects-grid" class="grid grid-cols-1 lg:grid-cols-2 gap-4"></div>
+    </section>
+    
+    <!-- Timetable Section -->
+    <section id="section-timetable" class="section">
+        <div class="mb-6"><h2 class="text-2xl font-bold text-white">🗓️ AI Timetable</h2><p class="text-slate-400 mt-1">Smart schedule optimized by AI</p></div>
+        <div class="card mb-4"><button onclick="generateFullSchedule()" class="btn btn-primary w-full md:w-auto">🔄 Generate Timetable</button><p class="text-xs text-slate-400 mt-2">Click Generate to create schedule based on your subjects</p></div>
+        <div class="card mb-6"><div class="flex flex-wrap gap-3"><button id="view-daily-btn" onclick="setView('daily')" class="btn btn-secondary view-btn">📅 Daily View</button><button id="view-weekly-btn" onclick="setView('weekly')" class="btn btn-secondary view-btn active">📆 Weekly View</button><button id="view-monthly-btn" onclick="setView('monthly')" class="btn btn-secondary view-btn">📋 Monthly View</button><div class="flex-1"></div><button onclick="downloadAsPNG()" class="btn btn-secondary">📸 Download PNG</button><button onclick="downloadAsPDF()" class="btn btn-secondary">📄 Download PDF</button></div><p class="text-xs text-slate-400 mt-3">💡 Click on any event to edit it | Drag to reschedule</p></div>
+        <div class="card" id="calendar-container"><div id="calendar"></div><div id="bed-time-indicator" class="bed-time-indicator mt-4 hidden"><span class="text-lg">😴</span><span class="text-sm text-slate-300">Time to rest! No more study sessions scheduled. Good night!</span></div></div>
+    </section>
+    
+    <!-- To Do List Section -->
+    <section id="section-todo" class="section">
+        <div class="flex items-center justify-between mb-6"><h2 class="text-2xl font-bold text-white">✓ To Do List</h2><button onclick="openTodoModal()" class="btn btn-primary">+ Add Task</button></div>
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div class="card"><h3 class="font-semibold text-white mb-3">📋 Pending</h3><div id="pending-tasks"></div></div>
+            <div class="card"><h3 class="font-semibold text-white mb-3">⏳ In Progress</h3><div id="progress-tasks"></div></div>
+            <div class="card"><h3 class="font-semibold text-white mb-3">✅ Completed</h3><div id="completed-tasks"></div></div>
+        </div>
+    </section>
+    
+    <!-- Analytics Section -->
+    <section id="section-analytics" class="section">
+        <h2 class="text-2xl font-bold text-white mb-6">📈 Analytics Dashboard</h2>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6"><div class="card"><h3 class="font-semibold text-white mb-4">Study Heatmap (30 days)</h3><div id="heatmap-container" class="flex flex-wrap gap-1"></div></div><div class="card"><h3 class="font-semibold text-white mb-4">Subject Progress</h3><div id="analytics-subjects" class="space-y-3"></div></div></div>
+        <div class="card"><h3 class="font-semibold text-white mb-4">Completion Probability Chart</h3><div style="height: 350px;"><canvas id="completion-chart"></canvas></div></div>
+    </section>
+    
+    <!-- Practice Section -->
+    <section id="section-practice" class="section">
+        <h2 class="text-2xl font-bold text-white mb-6">💻 Practice Mode</h2>
+        <div class="card mb-6"><div class="flex gap-3"><input type="text" id="practice-topic" placeholder="Enter topic" class="flex-1"><button onclick="fetchPracticeProblems()" class="btn btn-primary">🔍 Find Problems</button></div></div>
+        <div id="practice-results" class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="problems-column"><h3 class="font-semibold text-green-400 mb-3">🟢 Easy</h3><div id="easy-problems"></div></div>
+            <div class="problems-column"><h3 class="font-semibold text-amber-400 mb-3">🟡 Medium</h3><div id="medium-problems"></div></div>
+            <div class="problems-column"><h3 class="font-semibold text-red-400 mb-3">🔴 Hard</h3><div id="hard-problems"></div></div>
+        </div>
+    </section>
+    
+    <!-- Export Section -->
+    <section id="section-export" class="section">
+        <h2 class="text-2xl font-bold text-white mb-6">📤 Export & Reports</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="card"><h3 class="font-semibold text-white mb-3">📋 Export Data</h3><p class="text-sm text-slate-400 mb-4">Export your study data as JSON</p><a href="/api/export/json" class="btn btn-primary">📥 Download JSON</a></div>
+            <div class="card"><h3 class="font-semibold text-white mb-3">📊 AI Report</h3><p class="text-sm text-slate-400 mb-4">Generate AI-powered study report</p><button onclick="generateAIReport()" class="btn btn-secondary">Generate Report</button></div>
+        </div>
+        <div id="ai-report" class="card mt-6 hidden"></div>
+    </section>
+    
+    <!-- AI Exam Predictor Section -->
+    <section id="section-exam-predictor" class="section">
+        <div class="mb-6">
+            <h2 class="text-2xl font-bold text-white">📊 AI Exam Score Predictor</h2>
+            <p class="text-slate-400 text-sm mt-1">Powered by Linear Regression AI - Predicts exam scores based on study patterns</p>
+        </div>
+        <div class="card mb-6">
+            <button onclick="loadExamPredictions()" class="btn btn-primary">🔮 Predict My Scores</button>
+        </div>
+        <div id="exam-predictions-container" class="grid grid-cols-1 lg:grid-cols-2 gap-4"></div>
+    </section>
+    
+    <!-- AI Time Optimizer Section -->
+    <section id="section-time-optimizer" class="section">
+        <div class="mb-6">
+            <h2 class="text-2xl font-bold text-white">⏰ AI Smart Study Time Optimizer</h2>
+            <p class="text-slate-400 text-sm mt-1">Uses circadian rhythm AI to recommend different optimal study times for each subject</p>
+        </div>
+        <div class="card mb-6">
+            <button onclick="loadTimeRecommendations()" class="btn btn-primary">⚡ Get Optimized Schedule</button>
+        </div>
+        <div id="time-recommendations-container" class="space-y-3"></div>
+    </section>
+    
+    <!-- AI Quiz Generator Section -->
+    <section id="section-quiz" class="section">
+        <div class="mb-6">
+            <h2 class="text-2xl font-bold text-white">📝 AI Quiz Generator</h2>
+            <p class="text-slate-400 text-sm mt-1">Generates custom practice questions using NLP AI</p>
+        </div>
+        <div class="card mb-6">
+            <div class="flex flex-wrap gap-3">
+                <button onclick="generateQuizForWeakSubjects()" class="btn btn-primary">🎯 Generate Quiz (Weak Subjects)</button>
+                <select id="quiz-subject-select" class="bg-slate-800 rounded-lg px-4 py-2 text-white">
+                    <option value="">Select a subject</option>
+                </select>
+                <button onclick="generateQuizForSubject()" class="btn btn-secondary">Generate Quiz</button>
+            </div>
+        </div>
+        <div id="quiz-container" class="space-y-4"></div>
+    </section>
+    
+    <!-- AI Burnout Predictor Section -->
+    <section id="section-burnout" class="section">
+        <div class="mb-6">
+            <h2 class="text-2xl font-bold text-white">❤️ AI Burnout Predictor</h2>
+            <p class="text-slate-400 text-sm mt-1">Predicts burnout risk using study pattern analysis</p>
+        </div>
+        <div class="card mb-6">
+            <button onclick="loadBurnoutPrediction()" class="btn btn-primary">🔍 Analyze My Risk</button>
+        </div>
+        <div id="burnout-container" class="space-y-4"></div>
+    </section>
+    
+    <!-- AI Study Plan Section -->
+    <section id="section-study-plan" class="section">
+        <div class="mb-6">
+            <h2 class="text-2xl font-bold text-white">🎯 AI Personalized Study Plan</h2>
+            <p class="text-slate-400 text-sm mt-1">Comprehensive AI study plan combining all models</p>
+        </div>
+        <div class="card mb-6">
+            <div class="flex flex-wrap gap-3">
+                <input type="number" id="target-score" placeholder="Target Score (0-100)" class="w-48 bg-slate-800 rounded-lg px-4 py-2 text-white" value="85">
+                <button onclick="loadAIStudyPlan()" class="btn btn-primary">Generate My Plan</button>
+            </div>
+        </div>
+        <div id="study-plan-container" class="space-y-4"></div>
+    </section>
+</div>
+
+<!-- Hidden Printable Timetable Container -->
+<div id="print-container" style="position: fixed; left: -9999px; top: 0; width: 1200px; background: white; padding: 20px; font-family: 'Inter', sans-serif;"></div>
+
+<!-- AI Chatbot -->
+<div class="chatbot-container">
+    <div class="chatbot-toggle" onclick="toggleChatbot()"><span class="text-2xl">🤖</span></div>
+    <div class="chatbot-window hidden" id="chatbot-window">
+        <div class="bg-gradient-to-r from-indigo-600 to-purple-600 p-4 flex justify-between items-center"><span class="font-semibold text-white">🤖 NeuroStudy AI Assistant</span><button onclick="toggleChatbot()" class="text-white/80 hover:text-white">✕</button></div>
+        <div class="chatbot-messages" id="chat-messages"><div class="chatbot-message bot">👋 Hello! I'm NeuroStudy AI. Ask me about DSA, programming, study tips, or anything!</div></div>
+        <div class="chatbot-input"><input type="text" id="chat-input" placeholder="Ask me ANY question..." onkeypress="if(event.key==='Enter') sendChatMessage()"><button onclick="sendChatMessage()" class="btn btn-primary">Send</button></div>
+        <div class="p-3 border-t border-slate-700 text-center"><div class="text-green-400 text-xs">✅ AI is ACTIVE! Ask anything!</div></div>
+    </div>
+</div>
+
+<!-- Add Subject Modal -->
+<div id="add-subject-modal" class="modal-overlay hidden">
+    <div class="modal-container">
+        <h2 class="text-xl font-bold text-white mb-4">Add New Subject</h2>
+        <div class="space-y-4">
+            <div><label>Subject Name *</label><input type="text" id="new-name" placeholder="e.g., Data Structures"></div>
+            <div class="grid grid-cols-2 gap-3"><div><label>Difficulty (1-10)</label><input type="number" id="new-difficulty" min="1" max="10" value="5"></div><div><label>Estimated Hours</label><input type="number" id="new-hours" min="1" value="10"></div></div>
+            <div><label>Deadline</label><input type="date" id="new-deadline"></div>
+            <div><label>Subject Type</label><select id="new-type"><option value="">Auto-detect</option><option value="coding">💻 Coding</option><option value="theory">📚 Theory</option><option value="math">🔢 Math</option><option value="project">🚀 Project</option></select></div>
+            <div><label>Subject Color</label><div class="flex gap-2"><div class="color-preview" style="background:#4f46e5" onclick="selectColor('#4f46e5')"></div><div class="color-preview" style="background:#0ea5e9" onclick="selectColor('#0ea5e9')"></div><div class="color-preview" style="background:#f59e0b" onclick="selectColor('#f59e0b')"></div><div class="color-preview" style="background:#10b981" onclick="selectColor('#10b981')"></div><div class="color-preview" style="background:#ef4444" onclick="selectColor('#ef4444')"></div><div class="color-preview" style="background:#8b5cf6" onclick="selectColor('#8b5cf6')"></div></div><input type="hidden" id="selected-color" value="#4f46e5"></div>
+            <div class="border-t border-slate-700 pt-4"><label class="font-semibold text-white">📅 Study Schedule <span class="text-slate-400 text-xs">(Optional)</span></label><p class="text-xs text-slate-400 mb-3">Set your preferred study days and time for this subject</p>
+                <div id="schedule-slots-container"><div class="schedule-slot"><div class="flex justify-between items-center mb-2"><span class="text-sm text-white">Study Slot 1</span><button type="button" onclick="removeScheduleSlot(this)" class="text-red-400 text-xs">Remove</button></div><div class="day-selector"><span class="day-btn" data-day="monday" onclick="toggleDay(this)">Mon</span><span class="day-btn" data-day="tuesday" onclick="toggleDay(this)">Tue</span><span class="day-btn" data-day="wednesday" onclick="toggleDay(this)">Wed</span><span class="day-btn" data-day="thursday" onclick="toggleDay(this)">Thu</span><span class="day-btn" data-day="friday" onclick="toggleDay(this)">Fri</span><span class="day-btn" data-day="saturday" onclick="toggleDay(this)">Sat</span><span class="day-btn" data-day="sunday" onclick="toggleDay(this)">Sun</span></div><div class="time-input-group"><input type="time" class="slot-start-time" value="09:00"><span class="text-slate-400">to</span><input type="time" class="slot-end-time" value="11:00"></div></div></div>
+                <button type="button" onclick="addScheduleSlot()" class="btn btn-secondary text-sm mt-2">+ Add Another Study Slot</button>
+            </div>
+        </div>
+        <div class="flex gap-3 mt-6"><button onclick="addSubject()" class="btn btn-primary flex-1">Add Subject</button><button onclick="closeAddSubjectModal()" class="btn btn-secondary">Cancel</button></div>
+    </div>
+</div>
+
+<!-- Edit Subject Modal -->
+<div id="edit-subject-modal" class="modal-overlay hidden">
+    <div class="modal-container">
+        <h2 class="text-xl font-bold text-white mb-4">✏️ Edit Subject</h2>
+        <input type="hidden" id="edit-subject-id">
+        <div class="space-y-4">
+            <div><label>Subject Name</label><input type="text" id="edit-name"></div>
+            <div class="grid grid-cols-2 gap-3"><div><label>Difficulty (1-10)</label><input type="number" id="edit-difficulty" min="1" max="10"></div><div><label>Estimated Hours</label><input type="number" id="edit-hours" min="1"></div></div>
+            <div><label>Deadline</label><input type="date" id="edit-deadline"></div>
+            <div><label>Subject Type</label><select id="edit-type"><option value="coding">💻 Coding</option><option value="theory">📚 Theory</option><option value="math">🔢 Math</option><option value="project">🚀 Project</option></select></div>
+            <div><label>Subject Color</label><div class="flex gap-2"><div class="color-preview" style="background:#4f46e5" onclick="selectEditColor('#4f46e5')"></div><div class="color-preview" style="background:#0ea5e9" onclick="selectEditColor('#0ea5e9')"></div><div class="color-preview" style="background:#f59e0b" onclick="selectEditColor('#f59e0b')"></div><div class="color-preview" style="background:#10b981" onclick="selectEditColor('#10b981')"></div><div class="color-preview" style="background:#ef4444" onclick="selectEditColor('#ef4444')"></div><div class="color-preview" style="background:#8b5cf6" onclick="selectEditColor('#8b5cf6')"></div></div><input type="hidden" id="edit-color" value="#4f46e5"></div>
+            <div class="border-t border-slate-700 pt-4"><label class="font-semibold text-white">📅 Study Schedule <span class="text-slate-400 text-xs">(Optional)</span></label><div id="edit-schedule-slots-container"></div><button type="button" onclick="addEditScheduleSlot()" class="btn btn-secondary text-sm mt-2">+ Add Another Study Slot</button></div>
+        </div>
+        <div class="flex gap-3 mt-6"><button onclick="updateSubject()" class="btn btn-primary flex-1">Update Subject</button><button onclick="closeModal('edit-subject-modal')" class="btn btn-secondary">Cancel</button></div>
+    </div>
+</div>
+
+<!-- Edit Event Modal -->
+<div id="edit-event-modal" class="modal-overlay hidden">
+    <div class="modal-container"><h2 class="text-xl font-bold text-white mb-4">Edit Schedule Event</h2><input type="hidden" id="edit-event-id"><div class="space-y-3"><div><label>Event Title</label><input type="text" id="edit-event-title"></div><div class="grid grid-cols-2 gap-3"><div><label>Start</label><input type="datetime-local" id="edit-event-start"></div><div><label>End</label><input type="datetime-local" id="edit-event-end"></div></div><div><label>Color</label><input type="color" id="edit-event-color" value="#4f46e5"></div></div><div class="flex gap-3 mt-6"><button onclick="updateEvent()" class="btn btn-primary flex-1">Update</button><button onclick="deleteEvent()" class="btn btn-danger">Delete</button><button onclick="closeModal('edit-event-modal')" class="btn btn-secondary">Cancel</button></div></div>
+</div>
+
+<!-- Log Session Modal -->
+<div id="session-modal" class="modal-overlay hidden">
+    <div class="modal-container"><h2 class="text-xl font-bold text-white mb-4">Log Study Session</h2><input type="hidden" id="session-subject-id"><div class="space-y-3"><label>Hours Studied</label><input type="number" id="session-hours" step="0.5" min="0.5" value="1"><label>Notes</label><textarea id="session-notes" rows="3"></textarea></div><div class="flex gap-3 mt-6"><button onclick="logSession()" class="btn btn-success flex-1">Log Session</button><button onclick="closeModal('session-modal')" class="btn btn-secondary">Cancel</button></div></div>
+</div>
+
+<!-- Todo Modal -->
+<div id="todo-modal" class="modal-overlay hidden">
+    <div class="modal-container"><h2 class="text-xl font-bold text-white mb-4">Add Task</h2><div class="space-y-3"><label>Task Title</label><input type="text" id="todo-title"><label>Priority</label><select id="todo-priority"><option value="high">🔴 High</option><option value="medium">🟡 Medium</option><option value="low">🟢 Low</option></select><label>Deadline</label><input type="date" id="todo-deadline"><label>Description</label><textarea id="todo-desc" rows="2"></textarea></div><div class="flex gap-3 mt-6"><button onclick="addTodo()" class="btn btn-primary flex-1">Add Task</button><button onclick="closeModal('todo-modal')" class="btn btn-secondary">Cancel</button></div></div>
+</div>
+
+<script>
+// ============================================================
+// GLOBAL VARIABLES
+// ============================================================
+let subjects = [];
+let allQuotes = [];
+let calendar = null;
+let todos = JSON.parse(localStorage.getItem('todos') || '[]');
+let completionChart = null;
+let scheduleEvents = JSON.parse(localStorage.getItem('scheduleEvents') || '[]');
+let currentView = 'weekly';
+let generatedScheduleData = null;
+
+// Quotes
+const quotes = [
+    {text:"The only way to do great work is to love what you do.", author:"Steve Jobs"},
+    {text:"It does not matter how slowly you go as long as you do not stop.", author:"Confucius"},
+    {text:"Success is not final, failure is not fatal: it is the courage to continue that counts.", author:"Winston Churchill"},
+    {text:"Every expert was once a beginner.", author:"Helen Hayes"},
+    {text:"The secret of getting ahead is getting started.", author:"Mark Twain"},
+    {text:"Believe you can and you're halfway there.", author:"Theodore Roosevelt"}
+];
+allQuotes = quotes;
+
+// ============================================================
+// AI CHATBOT RESPONSES
+// ============================================================
+async function getAIResponse(query) {
+    const q = query.toLowerCase().trim();
+    
+    if (q.includes("chlorine")) {
+        return "🧪 **Chlorine (Cl)**: Chlorine is a chemical element with atomic number 17. It's a yellow-green gas at room temperature. Uses: disinfectant in swimming pools, water treatment, production of PVC plastics.";
+    }
+    if (q.includes("ozone layer")) {
+        return "🌍 **Ozone Layer**: The ozone layer is a region of Earth's stratosphere that absorbs 97-99% of the Sun's harmful UV radiation. The Montreal Protocol (1987) banned CFCs, and the ozone layer is slowly recovering.";
+    }
+    if (q.includes("what is dsa") || q.includes("dsa meaning")) {
+        return "📊 **DSA (Data Structures and Algorithms)**:\n\n**Data Structures** organize data: Arrays, Linked Lists, Stacks, Queues, Trees, Graphs.\n\n**Algorithms** solve problems: Sorting, Searching, Dynamic Programming, Recursion, BFS, DFS.\n\nDSA is essential for coding interviews and efficient programming.";
+    }
+    if (q.includes("quantum mechanics")) {
+        return "🔬 **Quantum Mechanics**: Physics at atomic scales. Key concepts: superposition (particles in multiple states), entanglement, wave-particle duality. Applications: quantum computing, lasers, MRI.";
+    }
+    if (q.includes("hello") || q.includes("hi")) {
+        return "👋 Hello! I'm NeuroStudy AI. Ask me about science, DSA, programming, math, study tips, or anything!";
+    }
+    if (q.includes("thank")) {
+        return "🎓 You're welcome! Keep learning!";
+    }
+    
+    return "📚 I'm NeuroStudy AI! Ask me about:\n\n**Science:** Ozone Layer, Chlorine, Quantum Mechanics\n**Programming:** DSA, Arrays, Linked Lists, Trees, Graphs\n**Math:** Pythagorean theorem, Quadratic formula\n**Study Skills:** Study techniques, exam preparation\n\nWhat would you like to learn?";
+}
+
+// ============================================================
+// INITIALIZATION
+// ============================================================
+document.addEventListener('DOMContentLoaded', async () => {
+    await loadSubjects();
+    await loadAnalytics();
+    initCalendar();
+    renderTodos();
+    updateQuoteOfDay();
+    refreshSidebarQuote();
+    await updateSubjectSelect();
+});
+
+function updateQuoteOfDay() {
+    const random = allQuotes[Math.floor(Math.random() * allQuotes.length)];
+    document.getElementById('qotd-text').textContent = random.text;
+    document.getElementById('qotd-author').textContent = `— ${random.author}`;
+}
+
+function refreshSidebarQuote() {
+    const random = allQuotes[Math.floor(Math.random() * allQuotes.length)];
+    document.getElementById('sidebar-quote').textContent = `"${random.text}"`;
+    document.getElementById('sidebar-quote-author').textContent = `— ${random.author}`;
+}
+
+function pinQuote() {
+    const text = document.getElementById('qotd-text').textContent;
+    showToast(`📌 Pinned: "${text}"`, 'success');
+}
+
+function showToast(message, type) {
+    const toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.innerHTML = `<span>${message}</span>`;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+}
+
+function showSection(id) {
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+    document.getElementById(`section-${id}`).classList.add('active');
+    if (id === 'analytics') loadAnalytics();
+}
+
+function openAddSubjectModal() { document.getElementById('add-subject-modal').classList.remove('hidden'); }
+function closeAddSubjectModal() { document.getElementById('add-subject-modal').classList.add('hidden'); }
+function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+function openTodoModal() { document.getElementById('todo-modal').classList.remove('hidden'); }
+
+// Schedule Slots Functions
+function addScheduleSlot() {
+    const container = document.getElementById('schedule-slots-container');
+    const count = container.children.length + 1;
+    const div = document.createElement('div');
+    div.className = 'schedule-slot';
+    div.innerHTML = `<div class="flex justify-between items-center mb-2"><span class="text-sm text-white">Study Slot ${count}</span><button type="button" onclick="removeScheduleSlot(this)" class="text-red-400 text-xs">Remove</button></div><div class="day-selector"><span class="day-btn" data-day="monday" onclick="toggleDay(this)">Mon</span><span class="day-btn" data-day="tuesday" onclick="toggleDay(this)">Tue</span><span class="day-btn" data-day="wednesday" onclick="toggleDay(this)">Wed</span><span class="day-btn" data-day="thursday" onclick="toggleDay(this)">Thu</span><span class="day-btn" data-day="friday" onclick="toggleDay(this)">Fri</span><span class="day-btn" data-day="saturday" onclick="toggleDay(this)">Sat</span><span class="day-btn" data-day="sunday" onclick="toggleDay(this)">Sun</span></div><div class="time-input-group"><input type="time" class="slot-start-time" value="09:00"><span class="text-slate-400">to</span><input type="time" class="slot-end-time" value="11:00"></div>`;
+    container.appendChild(div);
+}
+
+function addEditScheduleSlot() {
+    const container = document.getElementById('edit-schedule-slots-container');
+    const count = container.children.length + 1;
+    const div = document.createElement('div');
+    div.className = 'schedule-slot';
+    div.innerHTML = `<div class="flex justify-between items-center mb-2"><span class="text-sm text-white">Study Slot ${count}</span><button type="button" onclick="removeEditScheduleSlot(this)" class="text-red-400 text-xs">Remove</button></div><div class="day-selector"><span class="day-btn" data-day="monday" onclick="toggleEditDay(this)">Mon</span><span class="day-btn" data-day="tuesday" onclick="toggleEditDay(this)">Tue</span><span class="day-btn" data-day="wednesday" onclick="toggleEditDay(this)">Wed</span><span class="day-btn" data-day="thursday" onclick="toggleEditDay(this)">Thu</span><span class="day-btn" data-day="friday" onclick="toggleEditDay(this)">Fri</span><span class="day-btn" data-day="saturday" onclick="toggleEditDay(this)">Sat</span><span class="day-btn" data-day="sunday" onclick="toggleEditDay(this)">Sun</span></div><div class="time-input-group"><input type="time" class="slot-start-time" value="09:00"><span class="text-slate-400">to</span><input type="time" class="slot-end-time" value="11:00"></div>`;
+    container.appendChild(div);
+}
+
+function removeScheduleSlot(btn) { btn.closest('.schedule-slot').remove(); }
+function removeEditScheduleSlot(btn) { btn.closest('.schedule-slot').remove(); }
+function toggleDay(btn) { btn.classList.toggle('selected'); }
+function toggleEditDay(btn) { btn.classList.toggle('selected'); }
+
+function getScheduleSlots() {
+    const slots = [];
+    document.querySelectorAll('#add-subject-modal .schedule-slot').forEach(slot => {
+        const days = [];
+        slot.querySelectorAll('.day-btn.selected').forEach(d => days.push(d.getAttribute('data-day')));
+        const start = slot.querySelector('.slot-start-time').value;
+        const end = slot.querySelector('.slot-end-time').value;
+        if (days.length) slots.push({days, startTime: start, endTime: end});
+    });
+    return slots;
+}
+
+function getEditScheduleSlots() {
+    const slots = [];
+    document.querySelectorAll('#edit-subject-modal .schedule-slot').forEach(slot => {
+        const days = [];
+        slot.querySelectorAll('.day-btn.selected').forEach(d => days.push(d.getAttribute('data-day')));
+        const start = slot.querySelector('.slot-start-time').value;
+        const end = slot.querySelector('.slot-end-time').value;
+        if (days.length) slots.push({days, startTime: start, endTime: end});
+    });
+    return slots;
+}
+
+// ============================================================
+// SUBJECTS MANAGEMENT
+// ============================================================
+async function loadSubjects() {
+    const res = await fetch('/api/subjects');
+    subjects = await res.json();
+    renderSubjects();
+    updateStats();
+}
+
+function renderSubjects() {
+    const grid = document.getElementById('subjects-grid');
+    if (!subjects.length) {
+        grid.innerHTML = '<div class="col-span-full text-center py-12 text-slate-400">📚 No subjects. Click "Add Subject" to start!</div>';
+        return;
+    }
+    grid.innerHTML = subjects.map(s => `
+        <div class="card">
+            <div class="flex justify-between items-start mb-3">
+                <div><h3 class="font-semibold text-white">${escapeHtml(s.name)}</h3><div class="flex gap-2 mt-1"><span class="badge badge-${s.type}">${s.type}</span>${s.is_weak ? '<span class="badge" style="background:rgba(245,158,11,0.2);color:#fbbf24">⚠️ Weak</span>' : ''}</div></div>
+                <div class="text-center"><div class="text-xl font-bold" style="color:${getDiffColor(s.difficulty)}">${s.difficulty}</div><div class="text-xs text-slate-400">difficulty</div></div>
+            </div>
+            <div class="mb-4"><div class="flex justify-between text-sm mb-1"><span>Progress</span><span>${s.progress}%</span></div><div class="progress-bar"><div class="progress-fill" style="width:${s.progress}%;background:${s.color}"></div></div><div class="flex justify-between text-sm text-slate-400 mt-2"><span>📚 ${s.completed_hours}h / ${s.estimated_hours}h</span><span>📅 ${s.days_left===999?'No deadline':s.days_left+' days'}</span></div></div>
+            <div class="flex gap-2"><button onclick="openSessionModal(${s.id})" class="btn btn-primary text-sm flex-1">📝 Log Session</button><button onclick="openEditSubjectModal(${s.id})" class="btn btn-secondary text-sm">✏️ Edit</button><button onclick="toggleWeak(${s.id})" class="btn btn-secondary text-sm">${s.is_weak?'✓ Strong':'⚠️ Weak'}</button><button onclick="deleteSubject(${s.id})" class="btn btn-danger text-sm">🗑️</button></div>
+        </div>
+    `).join('');
+}
+
+function getDiffColor(d) { if(d>=8)return'#ef4444';if(d>=6)return'#f59e0b';if(d>=4)return'#4f46e5';return'#10b981';}
+function escapeHtml(t) { if(!t)return'';const d=document.createElement('div');d.textContent=t;return d.innerHTML;}
+
+let selectedColor = '#4f46e5';
+function selectColor(c) { selectedColor=c;document.querySelectorAll('#add-subject-modal .color-preview').forEach(el=>el.classList.remove('selected'));if(event?.target)event.target.classList.add('selected');}
+
+let editSelectedColor = '#4f46e5';
+function selectEditColor(c) { editSelectedColor=c;document.getElementById('edit-color').value=c;document.querySelectorAll('#edit-subject-modal .color-preview').forEach(el=>el.classList.remove('selected'));if(event?.target)event.target.classList.add('selected');}
+
+async function addSubject() {
+    const name = document.getElementById('new-name').value.trim();
+    if(!name){showToast('Enter subject name','error');return;}
+    const payload = {
+        name, difficulty:parseFloat(document.getElementById('new-difficulty').value),
+        estimated_hours:parseFloat(document.getElementById('new-hours').value),
+        deadline:document.getElementById('new-deadline').value,
+        type:document.getElementById('new-type').value,
+        color:selectedColor,
+        schedule_slots:getScheduleSlots()
+    };
+    const res = await fetch('/api/subjects', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    if(res.ok){
+        showToast(`"${name}" added!`,'success');
+        closeAddSubjectModal();
+        document.getElementById('new-name').value='';
+        await loadSubjects();
+        await loadAnalytics();
+    } else showToast('Error adding subject','error');
+}
+
+function openEditSubjectModal(id) {
+    const subject = subjects.find(s => s.id === id);
+    if(subject){
+        document.getElementById('edit-subject-id').value = subject.id;
+        document.getElementById('edit-name').value = subject.name;
+        document.getElementById('edit-difficulty').value = subject.difficulty;
+        document.getElementById('edit-hours').value = subject.estimated_hours;
+        document.getElementById('edit-deadline').value = subject.deadline || '';
+        document.getElementById('edit-type').value = subject.type;
+        document.getElementById('edit-color').value = subject.color || '#4f46e5';
+        editSelectedColor = subject.color || '#4f46e5';
+        
+        const container = document.getElementById('edit-schedule-slots-container');
+        container.innerHTML = '';
+        const slots = subject.schedule_slots || [];
+        if(slots.length === 0){
+            const div = document.createElement('div');
+            div.className = 'schedule-slot';
+            div.innerHTML = `<div class="flex justify-between items-center mb-2"><span class="text-sm text-white">Study Slot 1</span><button type="button" onclick="removeEditScheduleSlot(this)" class="text-red-400 text-xs">Remove</button></div><div class="day-selector"><span class="day-btn" data-day="monday" onclick="toggleEditDay(this)">Mon</span><span class="day-btn" data-day="tuesday" onclick="toggleEditDay(this)">Tue</span><span class="day-btn" data-day="wednesday" onclick="toggleEditDay(this)">Wed</span><span class="day-btn" data-day="thursday" onclick="toggleEditDay(this)">Thu</span><span class="day-btn" data-day="friday" onclick="toggleEditDay(this)">Fri</span><span class="day-btn" data-day="saturday" onclick="toggleEditDay(this)">Sat</span><span class="day-btn" data-day="sunday" onclick="toggleEditDay(this)">Sun</span></div><div class="time-input-group"><input type="time" class="slot-start-time" value="09:00"><span class="text-slate-400">to</span><input type="time" class="slot-end-time" value="11:00"></div>`;
+            container.appendChild(div);
+        } else {
+            slots.forEach((slot, idx) => {
+                const div = document.createElement('div');
+                div.className = 'schedule-slot';
+                div.innerHTML = `<div class="flex justify-between items-center mb-2"><span class="text-sm text-white">Study Slot ${idx+1}</span><button type="button" onclick="removeEditScheduleSlot(this)" class="text-red-400 text-xs">Remove</button></div><div class="day-selector"><span class="day-btn" data-day="monday" onclick="toggleEditDay(this)">Mon</span><span class="day-btn" data-day="tuesday" onclick="toggleEditDay(this)">Tue</span><span class="day-btn" data-day="wednesday" onclick="toggleEditDay(this)">Wed</span><span class="day-btn" data-day="thursday" onclick="toggleEditDay(this)">Thu</span><span class="day-btn" data-day="friday" onclick="toggleEditDay(this)">Fri</span><span class="day-btn" data-day="saturday" onclick="toggleEditDay(this)">Sat</span><span class="day-btn" data-day="sunday" onclick="toggleEditDay(this)">Sun</span></div><div class="time-input-group"><input type="time" class="slot-start-time" value="${slot.startTime || '09:00'}"><span class="text-slate-400">to</span><input type="time" class="slot-end-time" value="${slot.endTime || '11:00'}"></div>`;
+                container.appendChild(div);
+                slot.days.forEach(day => {
+                    const btn = div.querySelector(`.day-btn[data-day="${day}"]`);
+                    if(btn) btn.classList.add('selected');
+                });
+            });
+        }
+        openModal('edit-subject-modal');
+    }
+}
+
+async function updateSubject() {
+    const id = document.getElementById('edit-subject-id').value;
+    const payload = {
+        name: document.getElementById('edit-name').value,
+        difficulty: parseFloat(document.getElementById('edit-difficulty').value),
+        estimated_hours: parseFloat(document.getElementById('edit-hours').value),
+        deadline: document.getElementById('edit-deadline').value,
+        type: document.getElementById('edit-type').value,
+        color: document.getElementById('edit-color').value,
+        schedule_slots: getEditScheduleSlots()
+    };
+    const res = await fetch(`/api/subjects/${id}`, {method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    if(res.ok){
+        showToast('Subject updated!','success');
+        closeModal('edit-subject-modal');
+        await loadSubjects();
+        await loadAnalytics();
+    } else showToast('Error updating subject','error');
+}
+
+async function deleteSubject(id) {
+    if(!confirm('Delete this subject?'))return;
+    await fetch(`/api/subjects/${id}`,{method:'DELETE'});
+    await loadSubjects();
+    await loadAnalytics();
+    showToast('Deleted','info');
+}
+
+async function toggleWeak(id) {
+    await fetch(`/api/subjects/${id}/weak`,{method:'PUT'});
+    await loadSubjects();
+}
+
+function openSessionModal(id) { document.getElementById('session-subject-id').value=id;document.getElementById('session-modal').classList.remove('hidden'); }
+async function logSession() {
+    const id=document.getElementById('session-subject-id').value;
+    const hours=parseFloat(document.getElementById('session-hours').value);
+    const notes=document.getElementById('session-notes').value;
+    await fetch('/api/sessions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({subject_id:id,actual_hours:hours,notes})});
+    closeModal('session-modal');
+    document.getElementById('session-notes').value='';
+    showToast('Session logged!','success');
+    await loadSubjects();
+    await loadAnalytics();
+}
+
+// ============================================================
+// TIMETABLE FUNCTIONS
+// ============================================================
+function initCalendar() {
+    const el = document.getElementById('calendar');
+    calendar = new FullCalendar.Calendar(el, {
+        initialView:'timeGridWeek',
+        headerToolbar:false,
+        slotMinTime:'00:00:00',
+        slotMaxTime:'24:00:00',
+        allDaySlot:false,
+        height: 'auto',
+        contentHeight: 'auto',
+        expandRows: true,
+        stickyHeaderDates: true,
+        editable: true,
+        eventStartEditable: true,
+        eventDurationEditable: true,
+        slotLabelFormat: {hour:'numeric',minute:'2-digit',hour12:true},
+        eventTimeFormat: {hour:'numeric',minute:'2-digit',hour12:true},
+        eventClick: function(info) { openEditEventModal(info.event); },
+        eventDrop: function(info) { saveEventToStorage(info.event); checkBedTime(); showToast(`"${info.event.title}" moved`,'success'); },
+        eventResize: function(info) { saveEventToStorage(info.event); checkBedTime(); showToast(`"${info.event.title}" resized`,'success'); },
+        events: []
+    });
+    calendar.render();
+    loadSavedEvents();
+    checkBedTime();
+}
+
+function checkBedTime() {
+    if(!calendar) return;
+    const events = calendar.getEvents();
+    const nightHours = [0,1,2,3,4,5];
+    let hasLateEvent = false;
+    for(const event of events){
+        const hour = event.start.getHours();
+        if(nightHours.includes(hour)){
+            hasLateEvent = true;
+            break;
+        }
+    }
+    const bedTimeDiv = document.getElementById('bed-time-indicator');
+    if(bedTimeDiv){
+        if(!hasLateEvent && events.length > 0){
+            bedTimeDiv.classList.remove('hidden');
+        } else {
+            bedTimeDiv.classList.add('hidden');
+        }
+    }
+}
+
+function setView(view) {
+    currentView = view;
+    document.querySelectorAll('.view-btn').forEach(btn => btn.classList.remove('active'));
+    if(view === 'daily') document.getElementById('view-daily-btn').classList.add('active');
+    else if(view === 'weekly') document.getElementById('view-weekly-btn').classList.add('active');
+    else if(view === 'monthly') document.getElementById('view-monthly-btn').classList.add('active');
+    
+    if(calendar){
+        if(view === 'daily') calendar.changeView('timeGridDay');
+        else if(view === 'weekly') calendar.changeView('timeGridWeek');
+        else if(view === 'monthly') calendar.changeView('dayGridMonth');
+    }
+    setTimeout(() => {
+        checkBedTime();
+        if(calendar) calendar.updateSize();
+    }, 100);
+}
+
+async function generateFullSchedule() {
+    showToast('Generating schedule from your subjects...','info');
+    const res = await fetch('/api/ai-schedule',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({duration_type:'weekly'})});
+    const data = await res.json();
+    if(data.schedule && data.schedule.length){
+        generatedScheduleData = data.schedule;
+        const eventsWithColors = data.schedule.map(event => {
+            const subject = subjects.find(s => s.name === event.title);
+            if(subject && subject.color){
+                event.color = subject.color;
+                event.backgroundColor = subject.color;
+                event.borderColor = subject.color;
+            }
+            return event;
+        });
+        localStorage.setItem('scheduleEvents', JSON.stringify(eventsWithColors));
+        loadSavedEvents();
+        showToast(`Schedule generated with ${eventsWithColors.length} blocks!`,'success');
+    } else {
+        showToast('No schedule slots found. Add study slots to subjects first.','warning');
+    }
+}
+
+function loadSavedEvents() {
+    const events = JSON.parse(localStorage.getItem('scheduleEvents') || '[]');
+    if(calendar && events.length > 0){
+        calendar.removeAllEvents();
+        calendar.addEventSource(events);
+        setTimeout(() => calendar.updateSize(), 100);
+        checkBedTime();
+    }
+}
+
+function saveEventToStorage(event) {
+    const events = JSON.parse(localStorage.getItem('scheduleEvents') || '[]');
+    const index = events.findIndex(e => e.id === event.id);
+    const eventData = {
+        id: event.id, title: event.title, start: event.start, end: event.end,
+        color: event.backgroundColor, backgroundColor: event.backgroundColor, borderColor: event.backgroundColor
+    };
+    if(index !== -1) events[index] = eventData;
+    else events.push(eventData);
+    localStorage.setItem('scheduleEvents', JSON.stringify(events));
+}
+
+function openEditEventModal(event) {
+    document.getElementById('edit-event-id').value = event.id;
+    document.getElementById('edit-event-title').value = event.title;
+    document.getElementById('edit-event-start').value = new Date(event.start).toISOString().slice(0,16);
+    document.getElementById('edit-event-end').value = new Date(event.end).toISOString().slice(0,16);
+    document.getElementById('edit-event-color').value = event.backgroundColor || '#4f46e5';
+    openModal('edit-event-modal');
+}
+
+function updateEvent() {
+    const eventId = document.getElementById('edit-event-id').value;
+    const newTitle = document.getElementById('edit-event-title').value;
+    const newStart = document.getElementById('edit-event-start').value;
+    const newEnd = document.getElementById('edit-event-end').value;
+    const newColor = document.getElementById('edit-event-color').value;
+    
+    const events = JSON.parse(localStorage.getItem('scheduleEvents') || '[]');
+    const eventIndex = events.findIndex(e => e.id === eventId);
+    if(eventIndex !== -1){
+        events[eventIndex].title = newTitle;
+        events[eventIndex].start = newStart;
+        events[eventIndex].end = newEnd;
+        events[eventIndex].color = newColor;
+        events[eventIndex].backgroundColor = newColor;
+        events[eventIndex].borderColor = newColor;
+        localStorage.setItem('scheduleEvents', JSON.stringify(events));
+        if(calendar){
+            const event = calendar.getEventById(eventId);
+            if(event){
+                event.setProp('title', newTitle);
+                event.setStart(newStart);
+                event.setEnd(newEnd);
+                event.setProp('backgroundColor', newColor);
+                event.setProp('borderColor', newColor);
+            }
+        }
+        showToast('Event updated!','success');
+        checkBedTime();
+    }
+    closeModal('edit-event-modal');
+}
+
+function deleteEvent() {
+    const eventId = document.getElementById('edit-event-id').value;
+    let events = JSON.parse(localStorage.getItem('scheduleEvents') || '[]');
+    events = events.filter(e => e.id !== eventId);
+    localStorage.setItem('scheduleEvents', JSON.stringify(events));
+    if(calendar){
+        const event = calendar.getEventById(eventId);
+        if(event) event.remove();
+    }
+    showToast('Event deleted','info');
+    checkBedTime();
+    closeModal('edit-event-modal');
+}
+
+function openModal(modalId) { document.getElementById(modalId).classList.remove('hidden'); }
+
+async function downloadAsPNG() {
+    const element = document.getElementById('calendar-container');
+    if(!element){showToast('Generate schedule first','warning');return;}
+    showToast('Preparing full timetable for download...','info');
+    try {
+        const originalHeight = element.style.height;
+        const originalOverflow = element.style.overflow;
+        element.style.height = 'auto';
+        element.style.overflow = 'visible';
+        await new Promise(r => setTimeout(r, 200));
+        const canvas = await html2canvas(element, {scale: 2, backgroundColor: '#0f172a', logging: false, useCORS: true, windowWidth: element.scrollWidth, windowHeight: element.scrollHeight});
+        element.style.height = originalHeight;
+        element.style.overflow = originalOverflow;
+        const link = document.createElement('a');
+        const date = new Date().toISOString().split('T')[0];
+        link.download = `neurostudy_timetable_${currentView}_${date}.png`;
+        link.href = canvas.toDataURL();
+        link.click();
+        showToast('Full timetable downloaded as PNG!','success');
+    } catch(e) { showToast('Error capturing timetable: ' + e.message,'error'); element.style.height = ''; element.style.overflow = ''; }
+}
+
+async function downloadAsPDF() {
+    const element = document.getElementById('calendar-container');
+    if(!element){showToast('Generate schedule first','warning');return;}
+    showToast('Preparing full timetable for PDF download...','info');
+    try {
+        const originalHeight = element.style.height;
+        const originalOverflow = element.style.overflow;
+        element.style.height = 'auto';
+        element.style.overflow = 'visible';
+        await new Promise(r => setTimeout(r, 200));
+        const canvas = await html2canvas(element, {scale: 2, backgroundColor: '#0f172a', logging: false, useCORS: true, windowWidth: element.scrollWidth, windowHeight: element.scrollHeight});
+        element.style.height = originalHeight;
+        element.style.overflow = originalOverflow;
+        const { jsPDF } = window.jspdf;
+        const imgData = canvas.toDataURL('image/png');
+        const imgWidth = canvas.width;
+        const imgHeight = canvas.height;
+        const orientation = imgWidth > imgHeight ? 'landscape' : 'portrait';
+        const pdf = new jsPDF({orientation: orientation, unit: 'px', format: [imgWidth, imgHeight]});
+        pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+        const date = new Date().toISOString().split('T')[0];
+        pdf.save(`neurostudy_timetable_${currentView}_${date}.pdf`);
+        showToast('Full timetable downloaded as PDF!','success');
+    } catch(e) { showToast('Error capturing timetable: ' + e.message,'error'); element.style.height = ''; element.style.overflow = ''; }
+}
+
+// ============================================================
+// ANALYTICS
+// ============================================================
+async function loadAnalytics() {
+    const res = await fetch('/api/analytics');
+    const data = await res.json();
+    document.getElementById('stat-subjects').textContent=data.total_subjects||0;
+    document.getElementById('stat-hours').textContent=(data.total_hours||0)+'h';
+    document.getElementById('stat-sessions').textContent=data.total_sessions||0;
+    const avg=data.subjects?.length?Math.round(data.subjects.reduce((a,b)=>a+(b.progress_percent||0),0)/data.subjects.length):0;
+    document.getElementById('stat-progress').textContent=avg+'%';
+    
+    const heat={};data.heatmap?.forEach(h=>heat[h.date]=h.hours);
+    const today=new Date();let html='';
+    for(let i=29;i>=0;i--){const d=new Date(today);d.setDate(d.getDate()-i);const ds=d.toISOString().split('T')[0];const h=heat[ds]||0;const col=h===0?'#1e293b':h<1?'#4f46e5':h<2?'#7c3aed':'#a78bfa';html+=`<div class="w-6 h-6 rounded-md" style="background:${col}" title="${ds}: ${h}h"></div>`;}
+    document.getElementById('heatmap-container').innerHTML=html;
+    
+    if(data.subjects) document.getElementById('analytics-subjects').innerHTML=data.subjects.map(s=>`<div><div class="flex justify-between text-sm mb-1"><span class="text-white">${s.name}</span><span class="text-slate-400">${s.progress_percent || 0}%</span></div><div class="progress-bar"><div class="progress-fill" style="width:${s.progress_percent || 0}%"></div></div></div>`).join('');
+    
+    const ctx=document.getElementById('completion-chart');
+    if(ctx&&data.subjects){
+        if(completionChart)completionChart.destroy();
+        completionChart=new Chart(ctx,{type:'bar',data:{labels:data.subjects.map(s=>s.name.length>15?s.name.slice(0,12)+'...':s.name),datasets:[{label:'Completion Progress (%)',data:data.subjects.map(s=>s.progress_percent || 0),backgroundColor:'#4f46e5',borderRadius:8}]},options:{responsive:true,maintainAspectRatio:true,scales:{y:{max:100,ticks:{color:'#94a3b8'},grid:{color:'#334155'}}}}});
+    }
+    
+    if(data.subjects) document.getElementById('recent-subjects').innerHTML=data.subjects.slice(0,5).map(s=>`<div class="flex items-center gap-3"><div class="w-8 h-8 rounded-lg flex items-center justify-center" style="background:${s.type==='coding'?'#4f46e5':s.type==='theory'?'#0ea5e9':s.type==='math'?'#f59e0b':'#10b981'}20"><span>${s.type==='coding'?'💻':s.type==='theory'?'📚':s.type==='math'?'🔢':'🚀'}</span></div><div class="flex-1"><p class="text-sm font-medium text-white">${s.name}</p><div class="progress-bar mt-1"><div class="progress-fill" style="width:${s.progress_percent || 0}%"></div></div></div><div class="text-sm text-slate-400">${s.progress_percent || 0}%</div></div>`).join('');
+}
+
+function updateStats() {
+    const total=subjects.reduce((a,b)=>a+(b.completed_hours||0),0);
+    document.getElementById('stat-hours').textContent=total.toFixed(1)+'h';
+}
+
+// ============================================================
+// PRACTICE PROBLEMS
+// ============================================================
+const problems = {easy:[{title:"Two Sum",url:"https://leetcode.com/problems/two-sum/"},{title:"Valid Parentheses",url:"https://leetcode.com/problems/valid-parentheses/"},{title:"Merge Two Lists",url:"https://leetcode.com/problems/merge-two-sorted-lists/"}],medium:[{title:"Add Two Numbers",url:"https://leetcode.com/problems/add-two-numbers/"},{title:"Longest Substring",url:"https://leetcode.com/problems/longest-substring-without-repeating-characters/"},{title:"3Sum",url:"https://leetcode.com/problems/3sum/"}],hard:[{title:"Median of Arrays",url:"https://leetcode.com/problems/median-of-two-sorted-arrays/"},{title:"Merge k Lists",url:"https://leetcode.com/problems/merge-k-sorted-lists/"},{title:"Trapping Rain",url:"https://leetcode.com/problems/trapping-rain-water/"}]};
+function fetchPracticeProblems(){const topic=document.getElementById('practice-topic').value.toLowerCase();const e=problems.easy.filter(p=>!topic||p.title.toLowerCase().includes(topic));const m=problems.medium.filter(p=>!topic||p.title.toLowerCase().includes(topic));const h=problems.hard.filter(p=>!topic||p.title.toLowerCase().includes(topic));document.getElementById('easy-problems').innerHTML=e.map(p=>`<div class="problem-card"><p class="text-white text-sm">${p.title}</p><a href="${p.url}" target="_blank" class="text-indigo-400 text-xs">Solve →</a></div>`).join('');document.getElementById('medium-problems').innerHTML=m.map(p=>`<div class="problem-card"><p class="text-white text-sm">${p.title}</p><a href="${p.url}" target="_blank" class="text-indigo-400 text-xs">Solve →</a></div>`).join('');document.getElementById('hard-problems').innerHTML=h.map(p=>`<div class="problem-card"><p class="text-white text-sm">${p.title}</p><a href="${p.url}" target="_blank" class="text-indigo-400 text-xs">Solve →</a></div>`).join('');showToast(`Found ${e.length+m.length+h.length} problems`,'info');}
+
+// ============================================================
+// TO DO LIST
+// ============================================================
+function renderTodos(){const p=todos.filter(t=>t.status==='pending'),ip=todos.filter(t=>t.status==='progress'),c=todos.filter(t=>t.status==='completed');document.getElementById('pending-tasks').innerHTML=p.map(t=>`<div class="todo-item"><input type="checkbox" onchange="updateStatus(${t.id},'progress')"><div class="flex-1"><p class="font-medium ${t.priority==='high'?'text-red-400':t.priority==='medium'?'text-amber-400':'text-green-400'}">${escapeHtml(t.title)}</p>${t.deadline?`<p class="text-xs text-slate-400">📅 ${t.deadline}</p>`:''}</div><button onclick="deleteTodo(${t.id})" class="text-red-400">🗑️</button></div>`).join('');document.getElementById('progress-tasks').innerHTML=ip.map(t=>`<div class="todo-item"><input type="checkbox" onchange="updateStatus(${t.id},'completed')"><div class="flex-1"><p class="font-medium text-white">${escapeHtml(t.title)}</p>${t.deadline?`<p class="text-xs text-slate-400">📅 ${t.deadline}</p>`:''}</div><button onclick="deleteTodo(${t.id})" class="text-red-400">🗑️</button></div>`).join('');document.getElementById('completed-tasks').innerHTML=c.map(t=>`<div class="todo-item completed"><input type="checkbox" checked onchange="updateStatus(${t.id},'pending')"><div class="flex-1"><p class="todo-text font-medium text-slate-400 line-through">${escapeHtml(t.title)}</p>${t.deadline?`<p class="text-xs text-slate-500">📅 ${t.deadline}</p>`:''}</div><button onclick="deleteTodo(${t.id})" class="text-red-400">🗑️</button></div>`).join('');}
+function addTodo(){const title=document.getElementById('todo-title').value.trim();if(!title){showToast('Enter title','error');return;}const newTodo={id:Date.now(),title,priority:document.getElementById('todo-priority').value,deadline:document.getElementById('todo-deadline').value,description:document.getElementById('todo-desc').value,status:'pending'};todos.push(newTodo);localStorage.setItem('todos',JSON.stringify(todos));renderTodos();closeModal('todo-modal');document.getElementById('todo-title').value='';showToast('Task added','success');}
+function updateStatus(id,status){const t=todos.find(t=>t.id===id);if(t)t.status=status;localStorage.setItem('todos',JSON.stringify(todos));renderTodos();}
+function deleteTodo(id){todos=todos.filter(t=>t.id!==id);localStorage.setItem('todos',JSON.stringify(todos));renderTodos();showToast('Task deleted','info');}
+
+// ============================================================
+// AI CHATBOT
+// ============================================================
+function toggleChatbot() { document.getElementById('chatbot-window').classList.toggle('hidden'); }
+async function sendChatMessage() {
+    const input = document.getElementById('chat-input');
+    const query = input.value.trim();
+    if (!query) return;
+    addChatMessage(query, 'user');
+    input.value = '';
+    const typingDiv = document.createElement('div');
+    typingDiv.className = 'typing-indicator';
+    typingDiv.innerHTML = '<span></span><span></span><span></span>';
+    document.getElementById('chat-messages').appendChild(typingDiv);
+    const response = await getAIResponse(query);
+    typingDiv.remove();
+    addChatMessage(response, 'bot');
+}
+function addChatMessage(message, sender) {
+    const container = document.getElementById('chat-messages');
+    const div = document.createElement('div');
+    div.className = `chatbot-message ${sender}`;
+    div.innerHTML = message.replace(/\n/g, '<br>');
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
+}
+async function generateAIReport() {
+    const res = await fetch('/api/analytics');
+    const data = await res.json();
+    const r = document.getElementById('ai-report');
+    r.classList.remove('hidden');
+    r.innerHTML = `<h3 class="font-bold text-white mb-3">📊 AI Study Report</h3><div class="space-y-3"><div class="flex justify-between"><span class="text-slate-400">Subjects:</span><span class="text-indigo-400">${data.total_subjects||0}</span></div><div class="flex justify-between"><span class="text-slate-400">Study Hours:</span><span class="text-indigo-400">${data.total_hours||0}h</span></div><div class="flex justify-between"><span class="text-slate-400">Sessions:</span><span class="text-indigo-400">${data.total_sessions||0}</span></div><div class="mt-4 pt-4 border-t border-slate-700"><p class="text-sm text-slate-300">💡 Keep up the good work!</p></div></div>`;
+    showToast('Report generated','success');
+}
+
+// ============================================================
+// FIXED AI FUNCTIONS
+// ============================================================
+async function loadExamPredictions() {
+    showToast('🤖 AI analyzing your study patterns...', 'info');
+    const res = await fetch('/api/ai/exam-predict');
+    const data = await res.json();
+    const container = document.getElementById('exam-predictions-container');
+    if (data.length === 0) {
+        container.innerHTML = '<div class="card text-center text-slate-400">No subjects found. Add subjects first!</div>';
+        return;
+    }
+    container.innerHTML = data.map(p => `
+        <div class="card">
+            <div class="flex justify-between items-start mb-3"><h3 class="font-bold text-white">${escapeHtml(p.subject_name)}</h3><span class="badge ${p.risk_level === 'high' ? 'bg-red-500/20 text-red-400' : p.risk_level === 'medium' ? 'bg-amber-500/20 text-amber-400' : 'bg-green-500/20 text-green-400'}">${p.risk_level === 'high' ? '⚠️ At Risk' : p.risk_level === 'medium' ? '🟡 Moderate' : '✅ On Track'}</span></div>
+            <div class="text-center mb-4"><div class="text-5xl font-bold ${p.predicted_score >= 70 ? 'text-green-400' : p.predicted_score >= 50 ? 'text-amber-400' : 'text-red-400'}">${p.predicted_score}%</div><p class="text-slate-400 text-sm">Predicted Score</p></div>
+            <div class="progress-bar mb-3"><div class="progress-fill" style="width: ${p.predicted_score}%"></div></div>
+            <p class="text-sm text-slate-300">${p.recommendation}</p>
+        </div>
+    `).join('');
+    showToast('Predictions loaded!', 'success');
+}
+
+async function loadTimeRecommendations() {
+    showToast('🤖 Optimizing study times for each subject...', 'info');
+    const res = await fetch('/api/ai/time-optimize');
+    const data = await res.json();
+    const container = document.getElementById('time-recommendations-container');
+    
+    if (data.length === 0) {
+        container.innerHTML = '<div class="card text-center text-slate-400">No subjects found. Add subjects first!</div>';
+        return;
+    }
+    
+    container.innerHTML = data.map(rec => `
+        <div class="card">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h3 class="font-bold text-white">${escapeHtml(rec.subject_name)}</h3>
+                    <p class="text-slate-400 text-sm">${rec.subject_type}</p>
+                </div>
+                <div class="text-right">
+                    <div class="text-indigo-400 font-bold">${rec.optimal_time}</div>
+                    <div class="text-green-400 text-sm">${rec.productivity_boost} boost</div>
+                </div>
+            </div>
+            <div class="mt-3 p-3 bg-slate-800/50 rounded-lg">
+                <p class="text-xs text-slate-300">💡 ${rec.reason || `Best to study ${rec.subject_name} between ${rec.optimal_time} for maximum focus`}</p>
+            </div>
+        </div>
+    `).join('');
+    showToast('Optimized schedule ready with different time slots!', 'success');
+}
+
+async function generateQuizForWeakSubjects() {
+    showToast('🤖 Generating quiz questions from your weak subjects...', 'info');
+    const res = await fetch('/api/ai/generate-quiz-all');
+    const data = await res.json();
+    
+    if (!data.questions || data.questions.length === 0) {
+        document.getElementById('quiz-container').innerHTML = '<div class="card text-center text-slate-400">No subjects found. Add subjects first!</div>';
+        showToast('No subjects available for quiz', 'warning');
+        return;
+    }
+    
+    const container = document.getElementById('quiz-container');
+    container.innerHTML = `<div class="card"><h3 class="font-bold text-white mb-3">📝 Generated Quiz (${data.total_questions} questions)</h3><div class="space-y-4">${data.questions.map((q, idx) => `<div class="border-t border-slate-700 pt-3"><p class="font-medium text-white">Q${idx+1}. ${escapeHtml(q.question)}</p><details class="mt-2"><summary class="text-indigo-400 text-sm cursor-pointer hover:text-indigo-300">📖 View Sample Answer</summary><div class="text-slate-300 text-sm mt-2 p-3 bg-slate-800/50 rounded-lg whitespace-pre-line">${escapeHtml(q.sample_answer)}</div></details></div>`).join('')}</div></div>`;
+    showToast(`${data.total_questions} quiz questions generated!`, 'success');
+}
+
+async function generateQuizForSubject() {
+    const select = document.getElementById('quiz-subject-select');
+    const subjectId = select.value;
+    if (!subjectId) { showToast('Please select a subject from the dropdown', 'warning'); return; }
+    
+    showToast('🤖 Generating quiz for selected subject...', 'info');
+    const res = await fetch('/api/ai/generate-quiz', {
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json' }, 
+        body: JSON.stringify({ subject_id: parseInt(subjectId), num_questions: 3 })
+    });
+    const data = await res.json();
+    
+    const container = document.getElementById('quiz-container');
+    container.innerHTML = `<div class="card"><h3 class="font-bold text-white mb-3">📝 Quiz: ${escapeHtml(data.subject_name)}</h3><div class="space-y-4">${data.questions.map((q, idx) => `<div class="border-t border-slate-700 pt-3"><p class="font-medium text-white">Q${idx+1}. ${escapeHtml(q.question)}</p><details class="mt-2"><summary class="text-indigo-400 text-sm cursor-pointer hover:text-indigo-300">📖 View Sample Answer</summary><div class="text-slate-300 text-sm mt-2 p-3 bg-slate-800/50 rounded-lg whitespace-pre-line">${escapeHtml(q.sample_answer)}</div></details></div>`).join('')}</div></div>`;
+    showToast(`Quiz generated for ${data.subject_name}!`, 'success');
+}
+
+async function loadBurnoutPrediction() {
+    showToast('🤖 Analyzing burnout risk...', 'info');
+    
+    try {
+        const res = await fetch('/api/ai/burnout-predict');
+        const data = await res.json();
+        
+        const container = document.getElementById('burnout-container');
+        
+        // Check if there's no data or no sessions
+        if (!data || data.total_hours_last_14_days === 0) {
+            container.innerHTML = `
+                <div class="card text-center">
+                    <div class="text-6xl mb-4">📊</div>
+                    <h3 class="font-bold text-white text-lg mb-2">No Study Data Available</h3>
+                    <p class="text-slate-400 text-sm mb-4">You haven't logged any study sessions yet.</p>
+                    <p class="text-slate-300 text-sm">Go to the <strong>Subjects</strong> section and click <strong>Log Session</strong> on any subject to start tracking your study patterns.</p>
+                    <button onclick="showSection('subjects')" class="btn btn-primary mt-4">📚 Go to Subjects</button>
+                </div>
+            `;
+            showToast('No study data found. Log some study sessions first!', 'warning');
+            return;
+        }
+        
+        const riskColors = {'low': 'text-green-400', 'medium': 'text-amber-400', 'high': 'text-orange-400', 'critical': 'text-red-400'};
+        const riskBg = {'low': 'bg-green-500/10 border-green-500/20', 'medium': 'bg-amber-500/10 border-amber-500/20', 'high': 'bg-orange-500/10 border-orange-500/20', 'critical': 'bg-red-500/10 border-red-500/20'};
+        
+        container.innerHTML = `
+            <div class="card ${riskBg[data.risk_level]}">
+                <div class="text-center mb-4">
+                    <div class="text-6xl font-bold ${riskColors[data.risk_level]}">${data.risk_score}%</div>
+                    <p class="text-slate-400">Burnout Risk Score</p>
+                    <div class="progress-bar mt-3">
+                        <div class="progress-fill" style="width: ${data.risk_score}%; background: ${data.risk_score > 60 ? '#ef4444' : data.risk_score > 30 ? '#f59e0b' : '#10b981'}"></div>
+                    </div>
+                </div>
+                <div class="p-4 bg-slate-800/50 rounded-lg mb-3">
+                    <p class="text-white text-sm">${data.recommendation}</p>
+                </div>
+                <div class="grid grid-cols-2 gap-3 text-sm">
+                    <div><span class="text-slate-400">📊 Total Hours (14 days):</span> <span class="text-white">${data.total_hours_last_14_days}h</span></div>
+                    <div><span class="text-slate-400">📅 Avg Daily:</span> <span class="text-white">${data.avg_daily_hours}h</span></div>
+                </div>
+                ${data.daily_alert ? `<div class="mt-3 p-3 bg-red-500/20 rounded-lg border border-red-500/30"><p class="text-red-400 text-sm">⚠️ ${data.daily_alert}</p></div>` : ''}
+            </div>
+            <div class="card">
+                <h4 class="font-bold text-white mb-2">📋 Recovery Plan</h4>
+                <ul class="space-y-2 text-sm">
+                    <li class="flex justify-between"><span class="text-slate-400">Action:</span><span class="text-white">${data.recovery_plan.action}</span></li>
+                    <li class="flex justify-between"><span class="text-slate-400">Rest:</span><span class="text-white">${data.recovery_plan.rest}</span></li>
+                    <li class="flex justify-between"><span class="text-slate-400">Activity:</span><span class="text-white">${data.recovery_plan.activity}</span></li>
+                    <li class="flex justify-between"><span class="text-slate-400">Return Plan:</span><span class="text-white">${data.recovery_plan.return_plan}</span></li>
+                </ul>
+            </div>
+            <div class="card">
+                <h4 class="font-bold text-white mb-2">📈 Weekly Prediction</h4>
+                <p class="text-slate-300 text-sm">${data.weekly_prediction}</p>
+            </div>
+        `;
+        showToast('Burnout analysis complete!', 'success');
+    } catch(e) {
+        console.error('Burnout prediction error:', e);
+        const container = document.getElementById('burnout-container');
+        container.innerHTML = `
+            <div class="card text-center">
+                <div class="text-6xl mb-4">⚠️</div>
+                <h3 class="font-bold text-white text-lg mb-2">Error Loading Data</h3>
+                <p class="text-slate-400 text-sm">Could not fetch burnout prediction data.</p>
+                <button onclick="loadBurnoutPrediction()" class="btn btn-primary mt-4">🔄 Try Again</button>
+            </div>
+        `;
+        showToast('Error loading burnout prediction', 'error');
+    }
+}
+
+async function loadAIStudyPlan() {
+    const targetScore = document.getElementById('target-score').value;
+    showToast('🤖 Creating personalized study plan...', 'info');
+    const res = await fetch('/api/ai/study-plan', {method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ target_score: parseInt(targetScore) })});
+    const data = await res.json();
+    const container = document.getElementById('study-plan-container');
+    container.innerHTML = `<div class="card"><div class="flex justify-between items-center mb-4"><h3 class="font-bold text-white">📊 AI Study Plan Summary</h3><div class="text-center"><div class="text-2xl font-bold text-indigo-400">${data.avg_predicted_score}%</div><div class="text-xs text-slate-400">Avg Predicted Score</div></div></div><div class="p-3 bg-slate-800/50 rounded-lg mb-4"><p class="text-slate-300 text-sm">💡 ${data.recommendation}</p></div><h4 class="font-bold text-white mb-3">🎯 Subject Priority List</h4><div class="space-y-3">${data.subjects.map(s => `<div class="flex items-center justify-between p-3 bg-slate-800/30 rounded-lg"><div><p class="font-medium text-white">${escapeHtml(s.name)}</p><p class="text-xs text-slate-400">Difficulty: ${s.difficulty}/10 | Progress: ${s.progress}%</p></div><div class="text-right"><div class="text-sm ${s.predicted_score >= 70 ? 'text-green-400' : s.predicted_score >= 50 ? 'text-amber-400' : 'text-red-400'}">Predicted: ${s.predicted_score}%</div><div class="text-xs text-indigo-400">Best time: ${s.optimal_time}</div></div></div>`).join('')}</div></div>`;
+    showToast('Study plan generated!', 'success');
+}
+
+async function updateSubjectSelect() {
+    try {
+        const res = await fetch('/api/subjects');
+        const subjectsList = await res.json();
+        const select = document.getElementById('quiz-subject-select');
+        if (select) {
+            select.innerHTML = '<option value="">Select a subject</option>' + subjectsList.map(s => `<option value="${s.id}">${escapeHtml(s.name)}</option>`).join('');
+        }
+    } catch(e) {
+        console.error('Error updating subject select:', e);
+    }
+}
+</script>
+</body>
+</html>

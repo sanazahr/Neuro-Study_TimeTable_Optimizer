@@ -5,3 +5,5 @@ instance/
 .DS_Store
 *.db
 .env
+__pycache__/
+*.pyc

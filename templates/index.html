@@ -355,6 +355,27 @@
             border: 1px solid rgba(79, 70, 229, 0.3);
         }
         
+        /* Search input styling - FIXED */
+        #practice-topic {
+            background: #1e293b !important;
+            border: 1px solid #475569 !important;
+            border-radius: 12px !important;
+            padding: 12px 16px !important;
+            color: #f1f5f9 !important;
+            font-size: 14px !important;
+            transition: all 0.2s ease !important;
+        }
+
+        #practice-topic:focus {
+            border-color: #4f46e5 !important;
+            outline: none !important;
+            box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.2) !important;
+        }
+
+        #practice-topic::placeholder {
+            color: #64748b !important;
+        }
+        
         @media print {
             .sidebar, .chatbot-container, .btn, .view-btn, .nav-item {
                 display: none !important;
@@ -394,6 +415,12 @@
             border-radius: 12px;
             padding: 12px;
             margin-bottom: 12px;
+            transition: all 0.2s ease;
+        }
+        
+        .problem-card:hover {
+            background: #334155;
+            transform: translateX(4px);
         }
         
         .typing-indicator {
@@ -521,14 +548,30 @@
         <div class="card"><h3 class="font-semibold text-white mb-4">Completion Probability Chart</h3><div style="height: 350px;"><canvas id="completion-chart"></canvas></div></div>
     </section>
     
-    <!-- Practice Section -->
+    <!-- Practice Section - UPDATED with better styling and more problems -->
     <section id="section-practice" class="section">
         <h2 class="text-2xl font-bold text-white mb-6">💻 Practice Mode</h2>
-        <div class="card mb-6"><div class="flex gap-3"><input type="text" id="practice-topic" placeholder="Enter topic" class="flex-1"><button onclick="fetchPracticeProblems()" class="btn btn-primary">🔍 Find Problems</button></div></div>
+        <div class="card mb-6">
+            <div class="flex gap-3">
+                <input type="text" id="practice-topic" placeholder="Enter topic (array, graph, dp, tree, string, sorting)" 
+                       class="flex-1">
+                <button onclick="fetchPracticeProblems()" class="btn btn-primary">🔍 Find Problems</button>
+            </div>
+            <p class="text-xs text-slate-400 mt-2">💡 Try topics: array, linked list, stack, queue, tree, graph, dp, sorting</p>
+        </div>
         <div id="practice-results" class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div class="problems-column"><h3 class="font-semibold text-green-400 mb-3">🟢 Easy</h3><div id="easy-problems"></div></div>
-            <div class="problems-column"><h3 class="font-semibold text-amber-400 mb-3">🟡 Medium</h3><div id="medium-problems"></div></div>
-            <div class="problems-column"><h3 class="font-semibold text-red-400 mb-3">🔴 Hard</h3><div id="hard-problems"></div></div>
+            <div class="problems-column bg-slate-800/50 rounded-xl p-4">
+                <h3 class="font-semibold text-green-400 mb-3 text-lg">🟢 Easy</h3>
+                <div id="easy-problems" class="space-y-2"></div>
+            </div>
+            <div class="problems-column bg-slate-800/50 rounded-xl p-4">
+                <h3 class="font-semibold text-amber-400 mb-3 text-lg">🟡 Medium</h3>
+                <div id="medium-problems" class="space-y-2"></div>
+            </div>
+            <div class="problems-column bg-slate-800/50 rounded-xl p-4">
+                <h3 class="font-semibold text-red-400 mb-3 text-lg">🔴 Hard</h3>
+                <div id="hard-problems" class="space-y-2"></div>
+            </div>
         </div>
     </section>
     
@@ -740,6 +783,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     updateQuoteOfDay();
     refreshSidebarQuote();
     await updateSubjectSelect();
+    // Load default practice problems on page load
+    setTimeout(() => {
+        if (document.getElementById('easy-problems')) {
+            renderPracticeProblems(practiceProblems.easy.slice(0, 10), practiceProblems.medium.slice(0, 10), practiceProblems.hard.slice(0, 10));
+        }
+    }, 500);
 });
 
 function updateQuoteOfDay() {
@@ -1221,10 +1270,123 @@ function updateStats() {
 }
 
 // ============================================================
-// PRACTICE PROBLEMS
+// PRACTICE PROBLEMS - FIXED with 10+ problems each
 // ============================================================
-const problems = {easy:[{title:"Two Sum",url:"https://leetcode.com/problems/two-sum/"},{title:"Valid Parentheses",url:"https://leetcode.com/problems/valid-parentheses/"},{title:"Merge Two Lists",url:"https://leetcode.com/problems/merge-two-sorted-lists/"}],medium:[{title:"Add Two Numbers",url:"https://leetcode.com/problems/add-two-numbers/"},{title:"Longest Substring",url:"https://leetcode.com/problems/longest-substring-without-repeating-characters/"},{title:"3Sum",url:"https://leetcode.com/problems/3sum/"}],hard:[{title:"Median of Arrays",url:"https://leetcode.com/problems/median-of-two-sorted-arrays/"},{title:"Merge k Lists",url:"https://leetcode.com/problems/merge-k-sorted-lists/"},{title:"Trapping Rain",url:"https://leetcode.com/problems/trapping-rain-water/"}]};
-function fetchPracticeProblems(){const topic=document.getElementById('practice-topic').value.toLowerCase();const e=problems.easy.filter(p=>!topic||p.title.toLowerCase().includes(topic));const m=problems.medium.filter(p=>!topic||p.title.toLowerCase().includes(topic));const h=problems.hard.filter(p=>!topic||p.title.toLowerCase().includes(topic));document.getElementById('easy-problems').innerHTML=e.map(p=>`<div class="problem-card"><p class="text-white text-sm">${p.title}</p><a href="${p.url}" target="_blank" class="text-indigo-400 text-xs">Solve →</a></div>`).join('');document.getElementById('medium-problems').innerHTML=m.map(p=>`<div class="problem-card"><p class="text-white text-sm">${p.title}</p><a href="${p.url}" target="_blank" class="text-indigo-400 text-xs">Solve →</a></div>`).join('');document.getElementById('hard-problems').innerHTML=h.map(p=>`<div class="problem-card"><p class="text-white text-sm">${p.title}</p><a href="${p.url}" target="_blank" class="text-indigo-400 text-xs">Solve →</a></div>`).join('');showToast(`Found ${e.length+m.length+h.length} problems`,'info');}
+
+const practiceProblems = {
+    easy: [
+        { title: "Two Sum", url: "https://leetcode.com/problems/two-sum/", difficulty: "Easy" },
+        { title: "Valid Parentheses", url: "https://leetcode.com/problems/valid-parentheses/", difficulty: "Easy" },
+        { title: "Merge Two Sorted Lists", url: "https://leetcode.com/problems/merge-two-sorted-lists/", difficulty: "Easy" },
+        { title: "Maximum Subarray", url: "https://leetcode.com/problems/maximum-subarray/", difficulty: "Easy" },
+        { title: "Contains Duplicate", url: "https://leetcode.com/problems/contains-duplicate/", difficulty: "Easy" },
+        { title: "Best Time to Buy Stock", url: "https://leetcode.com/problems/best-time-to-buy-and-sell-stock/", difficulty: "Easy" },
+        { title: "Climbing Stairs", url: "https://leetcode.com/problems/climbing-stairs/", difficulty: "Easy" },
+        { title: "Invert Binary Tree", url: "https://leetcode.com/problems/invert-binary-tree/", difficulty: "Easy" },
+        { title: "Palindrome Number", url: "https://leetcode.com/problems/palindrome-number/", difficulty: "Easy" },
+        { title: "Roman to Integer", url: "https://leetcode.com/problems/roman-to-integer/", difficulty: "Easy" }
+    ],
+    medium: [
+        { title: "Add Two Numbers", url: "https://leetcode.com/problems/add-two-numbers/", difficulty: "Medium" },
+        { title: "Longest Substring Without Repeating Characters", url: "https://leetcode.com/problems/longest-substring-without-repeating-characters/", difficulty: "Medium" },
+        { title: "3Sum", url: "https://leetcode.com/problems/3sum/", difficulty: "Medium" },
+        { title: "Group Anagrams", url: "https://leetcode.com/problems/group-anagrams/", difficulty: "Medium" },
+        { title: "Container With Most Water", url: "https://leetcode.com/problems/container-with-most-water/", difficulty: "Medium" },
+        { title: "Course Schedule", url: "https://leetcode.com/problems/course-schedule/", difficulty: "Medium" },
+        { title: "Number of Islands", url: "https://leetcode.com/problems/number-of-islands/", difficulty: "Medium" },
+        { title: "Coin Change", url: "https://leetcode.com/problems/coin-change/", difficulty: "Medium" },
+        { title: "Word Search", url: "https://leetcode.com/problems/word-search/", difficulty: "Medium" },
+        { title: "Spiral Matrix", url: "https://leetcode.com/problems/spiral-matrix/", difficulty: "Medium" }
+    ],
+    hard: [
+        { title: "Median of Two Sorted Arrays", url: "https://leetcode.com/problems/median-of-two-sorted-arrays/", difficulty: "Hard" },
+        { title: "Merge k Sorted Lists", url: "https://leetcode.com/problems/merge-k-sorted-lists/", difficulty: "Hard" },
+        { title: "Trapping Rain Water", url: "https://leetcode.com/problems/trapping-rain-water/", difficulty: "Hard" },
+        { title: "Serialize and Deserialize Binary Tree", url: "https://leetcode.com/problems/serialize-and-deserialize-binary-tree/", difficulty: "Hard" },
+        { title: "Find Median from Data Stream", url: "https://leetcode.com/problems/find-median-from-data-stream/", difficulty: "Hard" },
+        { title: "Word Ladder II", url: "https://leetcode.com/problems/word-ladder-ii/", difficulty: "Hard" },
+        { title: "Regular Expression Matching", url: "https://leetcode.com/problems/regular-expression-matching/", difficulty: "Hard" },
+        { title: "Maximum Profit in Job Scheduling", url: "https://leetcode.com/problems/maximum-profit-in-job-scheduling/", difficulty: "Hard" },
+        { title: "Sliding Window Maximum", url: "https://leetcode.com/problems/sliding-window-maximum/", difficulty: "Hard" },
+        { title: "Longest Valid Parentheses", url: "https://leetcode.com/problems/longest-valid-parentheses/", difficulty: "Hard" }
+    ]
+};
+
+function fetchPracticeProblems() {
+    const topic = document.getElementById('practice-topic').value.toLowerCase().trim();
+    let easyList = [...practiceProblems.easy];
+    let mediumList = [...practiceProblems.medium];
+    let hardList = [...practiceProblems.hard];
+    
+    // Filter by topic if provided
+    if (topic && topic !== '' && topic !== 'default') {
+        const filteredEasy = easyList.filter(p => p.title.toLowerCase().includes(topic));
+        const filteredMedium = mediumList.filter(p => p.title.toLowerCase().includes(topic));
+        const filteredHard = hardList.filter(p => p.title.toLowerCase().includes(topic));
+        
+        if (filteredEasy.length > 0) easyList = filteredEasy;
+        if (filteredMedium.length > 0) mediumList = filteredMedium;
+        if (filteredHard.length > 0) hardList = filteredHard;
+        
+        if (easyList.length === 0 && mediumList.length === 0 && hardList.length === 0) {
+            easyList = practiceProblems.easy.slice(0, 5);
+            mediumList = practiceProblems.medium.slice(0, 5);
+            hardList = practiceProblems.hard.slice(0, 5);
+            showToast(`No results for "${topic}". Showing recommended problems.`, 'info');
+        } else {
+            showToast(`Found ${easyList.length + mediumList.length + hardList.length} problems for "${topic}"`, 'success');
+        }
+    } else {
+        showToast(`Showing ${easyList.length + mediumList.length + hardList.length} LeetCode problems`, 'info');
+    }
+    
+    renderPracticeProblems(easyList, mediumList, hardList);
+}
+
+function renderPracticeProblems(easy, medium, hard) {
+    const easyContainer = document.getElementById('easy-problems');
+    const mediumContainer = document.getElementById('medium-problems');
+    const hardContainer = document.getElementById('hard-problems');
+    
+    if (easyContainer) {
+        if (easy.length === 0) {
+            easyContainer.innerHTML = '<div class="text-center text-slate-400 py-4">No easy problems found</div>';
+        } else {
+            easyContainer.innerHTML = easy.map(p => `
+                <div class="problem-card bg-slate-700/50 rounded-lg p-3 hover:bg-slate-700 transition-all">
+                    <p class="text-white text-sm font-medium mb-2">${p.title}</p>
+                    <a href="${p.url}" target="_blank" class="text-indigo-400 text-xs hover:text-indigo-300 flex items-center gap-1">Solve on LeetCode →</a>
+                </div>
+            `).join('');
+        }
+    }
+    
+    if (mediumContainer) {
+        if (medium.length === 0) {
+            mediumContainer.innerHTML = '<div class="text-center text-slate-400 py-4">No medium problems found</div>';
+        } else {
+            mediumContainer.innerHTML = medium.map(p => `
+                <div class="problem-card bg-slate-700/50 rounded-lg p-3 hover:bg-slate-700 transition-all">
+                    <p class="text-white text-sm font-medium mb-2">${p.title}</p>
+                    <a href="${p.url}" target="_blank" class="text-indigo-400 text-xs hover:text-indigo-300 flex items-center gap-1">Solve on LeetCode →</a>
+                </div>
+            `).join('');
+        }
+    }
+    
+    if (hardContainer) {
+        if (hard.length === 0) {
+            hardContainer.innerHTML = '<div class="text-center text-slate-400 py-4">No hard problems found</div>';
+        } else {
+            hardContainer.innerHTML = hard.map(p => `
+                <div class="problem-card bg-slate-700/50 rounded-lg p-3 hover:bg-slate-700 transition-all">
+                    <p class="text-white text-sm font-medium mb-2">${p.title}</p>
+                    <a href="${p.url}" target="_blank" class="text-indigo-400 text-xs hover:text-indigo-300 flex items-center gap-1">Solve on LeetCode →</a>
+                </div>
+            `).join('');
+        }
+    }
+}
 
 // ============================================================
 // TO DO LIST
